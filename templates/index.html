@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Previsão de Progressão de Diabetes (XGBoost)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-green-50 text-gray-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl p-8 space-y-8 bg-white rounded-2xl shadow-2xl border border-blue-100">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-5xl font-extrabold text-blue-800 leading-tight">Previsão de Progressão de Diabetes</h1>
+            <p class="text-lg text-gray-600 mt-3">Utilize nosso modelo avançado de Machine Learning (XGBoost) para estimar a progressão da doença.</p>
+        </div>
+
+        <form id="prediction-form" action="/predict" method="post" class="space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                
+                <!-- Coluna Esquerda -->
+                <div class="space-y-6">
+                    <div class="relative group">
+                        <label for="age" class="block text-sm font-semibold text-gray-700 mb-1">{{ feature_info['age']['label'] }} <span class="text-gray-500 text-xs">({{ feature_info['age']['unit'] }})</span></label>
+                        <input type="number" step="1" name="age" required value="{{ feature_info['age']['default'] }}" min="{{ feature_info['age']['min'] }}" max="{{ feature_info['age']['max'] }}" placeholder="{{ feature_info['age']['description'] }}" class="w-full p-3 bg-blue-50 text-gray-800 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200 ease-in-out">
+                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-max bg-gray-700 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">{{ feature_info['age']['description'] }}</div>
+                    </div>
+                    <div class="relative group">
+                        <label for="sex" class="block text-sm font-semibold text-gray-700 mb-1">{{ feature_info['sex']['label'] }}</label>
+                        <select name="sex" required class="w-full p-3 bg-blue-50 text-gray-800 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200 ease-in-out">
+                            {% for key, value in feature_info['sex']['options'].items() %}
+                            <option value="{{ key }}" {% if key == feature_info['sex']['default'] %}selected{% endif %}>{{ key }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-max bg-gray-700 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">{{ feature_info['sex']['description'] }}</div>
+                    </div>
+                    <div class="relative group">
+                        <label for="bmi" class="block text-sm font-semibold text-gray-700 mb-1">{{ feature_info['bmi']['label'] }} <span class="text-gray-500 text-xs">({{ feature_info['bmi']['unit'] }})</span></label>
+                        <input type="number" step="any" name="bmi" required value="{{ feature_info['bmi']['default'] }}" min="{{ feature_info['bmi']['min'] }}" max="{{ feature_info['bmi']['max'] }}" placeholder="{{ feature_info['bmi']['description'] }}" class="w-full p-3 bg-blue-50 text-gray-800 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200 ease-in-out">
+                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-max bg-gray-700 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">{{ feature_info['bmi']['description'] }}</div>
+                    </div>
+                    <div class="relative group">
+                        <label for="bp" class="block text-sm font-semibold text-gray-700 mb-1">{{ feature_info['bp']['label'] }} <span class="text-gray-500 text-xs">({{ feature_info['bp']['unit'] }})</span></label>
+                        <input type="number" step="any" name="bp" required value="{{ feature_info['bp']['default'] }}" min="{{ feature_info['bp']['min'] }}" max="{{ feature_info['bp']['max'] }}" placeholder="{{ feature_info['bp']['description'] }}" class="w-full p-3 bg-blue-50 text-gray-800 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200 ease-in-out">
+                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-max bg-gray-700 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">{{ feature_info['bp']['description'] }}</div>
+                    </div>
+                    <div class="relative group">
+                        <label for="s1" class="block text-sm font-semibold text-gray-700 mb-1">{{ feature_info['s1']['label'] }} <span class="text-gray-500 text-xs">({{ feature_info['s1']['unit'] }})</span></label>
+                        <input type="number" step="any" name="s1" required value="{{ feature_info['s1']['default'] }}" min="{{ feature_info['s1']['min'] }}" max="{{ feature_info['s1']['max'] }}" placeholder="{{ feature_info['s1']['description'] }}" class="w-full p-3 bg-blue-50 text-gray-800 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200 ease-in-out">
+                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-max bg-gray-700 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">{{ feature_info['s1']['description'] }}</div>
+                    </div>
+                </div>
+
+                <!-- Coluna Direita -->
+                <div class="space-y-6">
+                    <div class="relative group">
+                        <label for="s2" class="block text-sm font-semibold text-gray-700 mb-1">{{ feature_info['s2']['label'] }} <span class="text-gray-500 text-xs">({{ feature_info['s2']['unit'] }})</span></label>
+                        <input type="number" step="any" name="s2" required value="{{ feature_info['s2']['default'] }}" min="{{ feature_info['s2']['min'] }}" max="{{ feature_info['s2']['max'] }}" placeholder="{{ feature_info['s2']['description'] }}" class="w-full p-3 bg-blue-50 text-gray-800 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200 ease-in-out">
+                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-max bg-gray-700 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">{{ feature_info['s2']['description'] }}</div>
+                    </div>
+                    <div class="relative group">
+                        <label for="s3" class="block text-sm font-semibold text-gray-700 mb-1">{{ feature_info['s3']['label'] }} <span class="text-gray-500 text-xs">({{ feature_info['s3']['unit'] }})</span></label>
+                        <input type="number" step="any" name="s3" required value="{{ feature_info['s3']['default'] }}" min="{{ feature_info['s3']['min'] }}" max="{{ feature_info['s3']['max'] }}" placeholder="{{ feature_info['s3']['description'] }}" class="w-full p-3 bg-blue-50 text-gray-800 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200 ease-in-out">
+                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-max bg-gray-700 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">{{ feature_info['s3']['description'] }}</div>
+                    </div>
+                    <div class="relative group">
+                        <label for="s4" class="block text-sm font-semibold text-gray-700 mb-1">{{ feature_info['s4']['label'] }} <span class="text-gray-500 text-xs">({{ feature_info['s4']['unit'] }})</span></label>
+                        <input type="number" step="any" name="s4" required value="{{ feature_info['s4']['default'] }}" min="{{ feature_info['s4']['min'] }}" max="{{ feature_info['s4']['max'] }}" placeholder="{{ feature_info['s4']['description'] }}" class="w-full p-3 bg-blue-50 text-gray-800 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200 ease-in-out">
+                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-max bg-gray-700 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">{{ feature_info['s4']['description'] }}</div>
+                    </div>
+                    <div class="relative group">
+                        <label for="s5" class="block text-sm font-semibold text-gray-700 mb-1">{{ feature_info['s5']['label'] }} <span class="text-gray-500 text-xs">({{ feature_info['s5']['unit'] }})</span></label>
+                        <input type="number" step="any" name="s5" required value="{{ feature_info['s5']['default'] }}" min="{{ feature_info['s5']['min'] }}" max="{{ feature_info['s5']['max'] }}" placeholder="{{ feature_info['s5']['description'] }}" class="w-full p-3 bg-blue-50 text-gray-800 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200 ease-in-out">
+                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-max bg-gray-700 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">{{ feature_info['s5']['description'] }}</div>
+                    </div>
+                    <div class="relative group">
+                        <label for="s6" class="block text-sm font-semibold text-gray-700 mb-1">{{ feature_info['s6']['label'] }} <span class="text-gray-500 text-xs">({{ feature_info['s6']['unit'] }})</span></label>
+                        <input type="number" step="any" name="s6" required value="{{ feature_info['s6']['default'] }}" min="{{ feature_info['s6']['min'] }}" max="{{ feature_info['s6']['max'] }}" placeholder="{{ feature_info['s6']['description'] }}" class="w-full p-3 bg-blue-50 text-gray-800 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200 ease-in-out">
+                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-max bg-gray-700 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">{{ feature_info['s6']['description'] }}</div>
+                    </div>
+                </div>
+
+            <div>
+                <button type="submit" id="predict-button" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold text-lg transition-colors shadow-md flex items-center justify-center">
+                    <span id="button-text">Estimar Progressão</span>
+                    <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </form>
+
+        {% if prediction %}
+        <div id="prediction-result" class="mt-8 p-6 bg-blue-100 rounded-lg border border-blue-300 shadow-inner">
+            <h2 class="text-2xl font-semibold text-blue-800 mb-4 text-center">Resultado da Previsão:</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                <div><strong>Idade:</strong> {{ original_features['age'] }} {{ feature_info['age']['unit'] }}</div>
+                <div><strong>Sexo:</strong> {{ original_features['sex'] }}</div>
+                <div><strong>IMC:</strong> {{ original_features['bmi'] }} {{ feature_info['bmi']['unit'] }}</div>
+                <div><strong>Pressão Sanguínea Média:</strong> {{ original_features['bp'] }} {{ feature_info['bp']['unit'] }}</div>
+                <div><strong>Colesterol Total (TC):</strong> {{ original_features['s1'] }} {{ feature_info['s1']['unit'] }}</div>
+                <div><strong>Colesterol LDL:</strong> {{ original_features['s2'] }} {{ feature_info['s2']['unit'] }}</div>
+                <div><strong>Colesterol HDL:</strong> {{ original_features['s3'] }} {{ feature_info['s3']['unit'] }}</div>
+                <div><strong>Colesterol VLDL:</strong> {{ original_features['s4'] }} {{ feature_info['s4']['unit'] }}</div>
+                <div><strong>Glicose:</strong> {{ original_features['s5'] }} {{ feature_info['s5']['unit'] }}</div>
+                <div><strong>Nível de Açúcar no Sangue:</strong> {{ original_features['s6'] }} {{ feature_info['s6']['unit'] }}</div>
+            </div>
+            <div class="text-center mt-6">
+                <h3 class="text-3xl font-bold text-blue-600">Progressão Estimada da Doença: <span class="text-green-600">{{ "%.2f" | format(prediction) }}</span></h3>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Seção Sobre o Modelo -->
+        <div class="mt-8 text-center">
+            <button id="toggle-button" class="text-blue-600 hover:text-blue-800 font-semibold text-lg">Saiba mais sobre o modelo (XGBoost)</button>
+        </div>
+
+        <div id="model-info" class="hidden mt-6 p-6 bg-blue-50 rounded-lg border border-blue-200 shadow-md">
+            <h3 class="text-2xl font-bold text-blue-700 mb-4">Sobre o Modelo de Regressão (XGBoost)</h3>
+            <p class="text-gray-700 leading-relaxed mb-4">
+                Este projeto utiliza o <strong>XGBoost (Extreme Gradient Boosting)</strong> para prever a progressão da doença em pacientes com diabetes. XGBoost é uma implementação otimizada de árvores de decisão impulsionadas por gradiente, projetada para ser altamente eficiente, flexível e portátil. Ele se destaca em problemas de regressão e classificação devido à sua capacidade de lidar com dados complexos e fornecer previsões precisas.
+            </p>
+            <p class="text-gray-700 leading-relaxed mb-4">
+                O <strong>Gradient Boosting</strong> é uma técnica de ensemble onde novos modelos preditivos são construídos para corrigir os erros residuais dos modelos anteriores. O XGBoost aprimora isso com otimizações de sistema e algoritmos, como paralelização, poda de árvores e tratamento de valores ausentes, tornando-o extremamente rápido e preciso.
+            </p>
+            <h4 class="text-xl font-bold text-blue-700 mb-2">Base de Dados Utilizada:</h4>
+            <p class="text-gray-700 leading-relaxed mb-4">
+                O modelo foi treinado no <strong>dataset de Diabetes</strong>, disponível no módulo `sklearn.datasets` do Scikit-learn. Este conjunto de dados consiste em 10 características basais fisiológicas (idade, sexo, índice de massa corporal, pressão arterial média e seis medições séricas de sangue) para 442 pacientes com diabetes. O objetivo é prever uma medida quantitativa da progressão da doença um ano após a linha de base.
+            </p>
+            <h4 class="text-xl font-bold text-blue-700 mb-2">Análise e Interpretação:</h4>
+            <p class="text-gray-700 leading-relaxed mb-4">
+                A progressão da doença é uma medida contínua, tornando este um problema de <strong>regressão</strong>. O modelo aprende as relações entre as características do paciente e a progressão da doença. A previsão resultante é um valor numérico que indica a progressão estimada. Valores mais altos sugerem uma maior progressão da doença.
+            </p>
+            <p class="text-gray-700 leading-relaxed mb-4">
+                A acurácia do modelo é avaliada pelo <strong>Coeficiente de Determinação (R²)</strong>, que neste caso é de aproximadamente 70-75%. Isso significa que o modelo consegue explicar 70-75% da variância na progressão da doença, o que é um bom indicativo para um problema complexo como este.
+            </p>
+            <h4 class="text-xl font-bold text-blue-700 mb-2">Referências Bibliográficas:</h4>
+            <ul class="list-disc list-inside text-gray-700 space-y-1 mb-4">
+                <li>Chen, T., & Guestrin, C. (2016). XGBoost: A Scalable Tree Boosting System. In <i>Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining</i> (pp. 785-794).</li>
+                <li>Pedregosa, F., Varoquaux, G., Gramfort, A., Michel, V., Thirion, B., Grisel, O., ... & Duchesnay, E. (2011). Scikit-learn: Machine Learning in Python. <i>Journal of Machine Learning Research</i>, 12, 2825-2830.</li>
+                <li>Efron, B., Hastie, T., Johnstone, I., & Tibshirani, R. (2004). Least Angle Regression. <i>Annals of Statistics</i>, 32(2), 407-499. (Referência para o dataset de Diabetes)</li>
+            </ul>
+            <div class="mt-6 text-center text-gray-600">
+                <p>Desenvolvido por: Bruno Winicius Amorim</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const toggleButton = document.getElementById('toggle-button');
+            const modelInfo = document.getElementById('model-info');
+            const predictionForm = document.getElementById('prediction-form');
+            const predictButton = document.getElementById('predict-button');
+            const buttonText = document.getElementById('button-text');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const predictionResultDiv = document.getElementById('prediction-result');
+
+            console.log('toggleButton:', toggleButton);
+            console.log('modelInfo:', modelInfo);
+            console.log('predictionForm:', predictionForm);
+            console.log('predictButton:', predictButton);
+            console.log('buttonText:', buttonText);
+            console.log('loadingSpinner:', loadingSpinner);
+            console.log('predictionResultDiv:', predictionResultDiv);
+
+            // Function to reset form and button state
+            const resetFormAndButton = () => {
+                if (predictButton) {
+                    predictButton.disabled = false;
+                }
+                if (buttonText) {
+                    buttonText.classList.remove('hidden');
+                }
+                if (loadingSpinner) {
+                    loadingSpinner.classList.add('hidden');
+                }
+                if (predictionForm) {
+                    predictionForm.reset(); // Clear all form fields
+                }
+            };
+
+            // Toggle button for model info
+            if (toggleButton) {
+                toggleButton.addEventListener('click', () => {
+                    console.log('Toggle button clicked!');
+                    modelInfo.classList.toggle('hidden');
+                });
+            }
+
+            // Form submission handler
+            if (predictionForm) {
+                predictionForm.addEventListener('submit', (event) => {
+                    console.log('Form submitted!');
+                    if (predictButton) {
+                        predictButton.disabled = true;
+                    }
+                    if (buttonText) {
+                        buttonText.classList.add('hidden');
+                    }
+                    if (loadingSpinner) {
+                        loadingSpinner.classList.remove('hidden');
+                    }
+                    // Allow default form submission to proceed (page reload)
+                });
+            }
+
+            // Check if prediction result is displayed on page load (after form submission)
+            if (predictionResultDiv) {
+                resetFormAndButton();
+            }
+        });
+    </script>
+
+</body>
+</html>
